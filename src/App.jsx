@@ -61,16 +61,17 @@ function LoginScreen({ onLogin, onSignup }) {
 
   return (
     <div className="login-container">
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <img 
           src={logoImage} 
           alt="이화여자대학교 로고" 
           style={{ 
-            width: '200px', 
-            height: '200px', 
+            width: '150px', 
+            height: '150px', 
             objectFit: 'contain',
             display: 'block',
-            margin: '0 auto'
+            margin: '0 auto',
+            maxWidth: '100%'
           }}
         />
       </div>
@@ -1384,12 +1385,12 @@ function GameScreen({ onBack }) {
     const color = isActive ? colors[colorName].active : colors[colorName].inactive;
     return {
       borderRadius: '50%',
-      width: '120px',
-      height: '120px',
+      width: '80px',
+      height: '80px',
       transition: 'all 0.3s ease-in-out',
       background: color.bg,
-      boxShadow: isActive ? `0 0 40px ${color.shadow}` : 'none',
-      border: isActive ? '3px solid rgba(255, 255, 255, 0.3)' : '3px solid rgba(0, 0, 0, 0.3)',
+      boxShadow: isActive ? `0 0 30px ${color.shadow}` : 'none',
+      border: isActive ? '2px solid rgba(255, 255, 255, 0.3)' : '2px solid rgba(0, 0, 0, 0.3)',
       opacity: isActive ? 1 : 0.4
     };
   };
@@ -1417,18 +1418,18 @@ function GameScreen({ onBack }) {
     <div
       onClick={handleTap}
       style={{
-        minHeight: 'calc(100vh - 200px)',
+        minHeight: 'calc(100vh - 140px)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         background: '#1a1a1a',
         color: 'white',
-        padding: '40px 20px',
+        padding: '20px 16px',
         cursor: gameState === 'playing' ? 'pointer' : 'default'
       }}
     >
-      <h1 style={{ fontSize: '32px', marginBottom: '40px', fontWeight: 'bold' }}>
+      <h1 style={{ fontSize: '20px', marginBottom: '20px', fontWeight: 'bold', textAlign: 'center' }}>
         STOP THE LIGHT
       </h1>
 
@@ -1436,10 +1437,12 @@ function GameScreen({ onBack }) {
       {gameState === "playing" && (
         <div style={{
           display: 'flex',
-          gap: '32px',
-          marginBottom: '20px',
-          fontSize: '20px',
-          fontWeight: 'bold'
+          gap: '20px',
+          marginBottom: '16px',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
         }}>
           <div>
             점수: <span style={{ color: '#22c55e' }}>{score}</span>
@@ -1454,12 +1457,14 @@ function GameScreen({ onBack }) {
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '20px',
-        marginBottom: '40px',
-        padding: '30px',
+        gap: '12px',
+        marginBottom: '24px',
+        padding: '20px',
         background: '#2a2a2a',
-        borderRadius: '20px',
-        border: '3px solid #444'
+        borderRadius: '16px',
+        border: '2px solid #444',
+        width: '100%',
+        maxWidth: '280px'
       }}>
         {renderLightCircles()}
       </div>
@@ -1467,7 +1472,7 @@ function GameScreen({ onBack }) {
       {/* 안내 문구 */}
       {gameState === "waiting" && (
         <>
-          <p style={{ fontSize: '16px', color: '#ccc', marginBottom: '24px', textAlign: 'center', lineHeight: '1.6' }}>
+          <p style={{ fontSize: '14px', color: '#ccc', marginBottom: '20px', textAlign: 'center', lineHeight: '1.6', padding: '0 10px' }}>
             15초 동안 초록불을 최대한 많이 터치하세요!<br />
             빨강 → 노랑 → 초록 순서로 바뀝니다
           </p>
@@ -1493,7 +1498,7 @@ function GameScreen({ onBack }) {
       )}
 
       {gameState === "playing" && (
-        <p style={{ fontSize: '18px', opacity: 0.8, textAlign: 'center' }}>
+        <p style={{ fontSize: '16px', opacity: 0.8, textAlign: 'center', padding: '0 10px' }}>
           {light === "red" && "빨강불 - 기다리세요..."}
           {light === "yellow" && "노랑불 - 준비하세요!"}
           {light === "green" && "초록불 - 지금 터치하세요! 🟢"}
@@ -1546,14 +1551,15 @@ function GameScreen({ onBack }) {
           <div style={{
             background: '#2E7D32',
             borderRadius: '12px',
-            padding: '24px',
-            marginBottom: '24px',
-            minWidth: '250px'
+            padding: '20px',
+            marginBottom: '20px',
+            width: '100%',
+            maxWidth: '300px'
           }}>
-            <p style={{ fontSize: '24px', marginBottom: '16px', fontWeight: 'bold' }}>
+            <p style={{ fontSize: '20px', marginBottom: '12px', fontWeight: 'bold' }}>
               게임 종료!
             </p>
-            <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff', marginBottom: '16px' }}>
+            <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#fff', marginBottom: '12px' }}>
               최종 점수: {score}
             </p>
             {couponEarned && (
@@ -1927,20 +1933,21 @@ function RatingScreen({ matchedRide, participants: matchedParticipants, onComple
                     key={option.value}
                     onClick={() => handleParticipantRating(participant.id, option.value)}
                     style={{
-                      padding: '16px',
+                      padding: '12px',
                       border: currentRating === option.value ? '3px solid #2E7D32' : '2px solid #ddd',
                       borderRadius: '12px',
                       background: currentRating === option.value ? '#E8F5E9' : 'white',
                       cursor: 'pointer',
-                      minWidth: '80px',
-                      transition: 'all 0.2s'
+                      minWidth: '70px',
+                      transition: 'all 0.2s',
+                      flex: '1 1 auto'
                     }}
                   >
-                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>{option.emoji}</div>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '28px', marginBottom: '6px' }}>{option.emoji}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>
                       {option.label}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#666' }}>
+                    <div style={{ fontSize: '10px', color: '#666' }}>
                       {option.temp}
                     </div>
                   </button>
@@ -2023,17 +2030,18 @@ function RatingScreen({ matchedRide, participants: matchedParticipants, onComple
                   key={option.value}
                   onClick={() => setDriverRating(option.value)}
                   style={{
-                    padding: '16px',
+                    padding: '12px',
                     border: driverRating === option.value ? '3px solid #2E7D32' : '2px solid #ddd',
                     borderRadius: '12px',
                     background: driverRating === option.value ? '#E8F5E9' : 'white',
                     cursor: 'pointer',
-                    minWidth: '80px',
-                    transition: 'all 0.2s'
+                    minWidth: '70px',
+                    transition: 'all 0.2s',
+                    flex: '1 1 auto'
                   }}
                 >
-                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>{option.emoji}</div>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>{option.emoji}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>
                     {option.label}
                   </div>
                 </button>
@@ -2099,19 +2107,19 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
         flexDirection: 'column', 
         alignItems: 'center', 
         justifyContent: 'center',
-        minHeight: '100vh',
-        padding: '40px 20px',
+        minHeight: 'calc(100vh - 140px)',
+        padding: '20px 16px',
         textAlign: 'center'
       }}>
         <div style={{ 
-          width: '120px', 
-          height: '120px', 
+          width: '100px', 
+          height: '100px', 
           borderRadius: '50%', 
           background: '#2E7D32',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: '24px',
+          marginBottom: '20px',
           position: 'relative'
         }}>
           <div style={{
@@ -2119,24 +2127,24 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
             width: '100%',
             height: '100%',
             borderRadius: '50%',
-            border: '4px solid #2E7D32',
+            border: '3px solid #2E7D32',
             animation: 'pulse 1.5s infinite'
           }}></div>
-          <span style={{ fontSize: '48px', zIndex: 1 }}>🚕</span>
+          <span style={{ fontSize: '40px', zIndex: 1 }}>🚕</span>
         </div>
-        <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '12px' }}>매칭 중입니다</h2>
-        <p style={{ color: '#666', marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '10px' }}>매칭 중입니다</h2>
+        <p style={{ color: '#666', marginBottom: '24px', fontSize: '14px' }}>
           <span style={{ color: '#2E7D32', fontWeight: 'bold' }}>{rideInfo.destinationZone}</span> 방향으로<br />
           가는 이화인을 찾고 있어요
         </p>
         <div style={{
           background: 'white',
           borderRadius: '12px',
-          padding: '20px',
+          padding: '16px',
           width: '100%',
           maxWidth: '400px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
+          marginBottom: '20px'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #eee' }}>
             <span style={{ color: '#666' }}>픽업존</span>
@@ -2171,7 +2179,7 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
 
   return (
     <div style={{ 
-      padding: '40px 20px',
+      padding: '20px 16px',
       textAlign: 'center'
     }}>
       <div style={{
@@ -2186,14 +2194,16 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
       }}>
         <span style={{ fontSize: '40px' }}>✅</span>
       </div>
-      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '12px' }}>매칭 완료!</h2>
-      <p style={{ color: '#666', marginBottom: '32px' }}>함께 이동할 이화인을 찾았어요</p>
+      <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '10px' }}>매칭 완료!</h2>
+      <p style={{ color: '#666', marginBottom: '20px', fontSize: '14px' }}>함께 이동할 이화인을 찾았어요</p>
       <div style={{
         background: 'white',
         borderRadius: '12px',
-        padding: '20px',
-        marginBottom: '24px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        padding: '16px',
+        marginBottom: '20px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        width: '100%',
+        maxWidth: '400px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
           <span style={{ color: '#666' }}>총 인원</span>
@@ -2212,27 +2222,29 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
         background: '#E8F5E9',
         border: '2px solid #2E7D32',
         borderRadius: '12px',
-        padding: '24px',
+        padding: '20px',
         textAlign: 'center',
-        marginBottom: '24px'
+        marginBottom: '20px',
+        width: '100%',
+        maxWidth: '400px'
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚕</div>
-        <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#2E7D32', marginBottom: '8px' }}>
+        <div style={{ fontSize: '40px', marginBottom: '12px' }}>🚕</div>
+        <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#2E7D32', marginBottom: '6px' }}>
           택시 출발위치로 이동해주세요
         </p>
-        <p style={{ fontSize: '14px', color: '#666' }}>
+        <p style={{ fontSize: '13px', color: '#666' }}>
           {matchedRide.pickupZone}
         </p>
       </div>
       <button
         onClick={() => setShowRating(true)}
         style={{
-          padding: '16px 32px',
+          padding: '14px 24px',
           background: '#2E7D32',
           color: 'white',
           border: 'none',
           borderRadius: '12px',
-          fontSize: '16px',
+          fontSize: '15px',
           fontWeight: 'bold',
           cursor: 'pointer',
           width: '100%',
