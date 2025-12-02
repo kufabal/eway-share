@@ -1398,7 +1398,8 @@ function GameScreen({ onBack }) {
       background: color.bg,
       boxShadow: isActive ? `0 0 30px ${color.shadow}` : 'none',
       border: isActive ? '2px solid rgba(255, 255, 255, 0.3)' : '2px solid rgba(0, 0, 0, 0.3)',
-      opacity: isActive ? 1 : 0.4
+      opacity: isActive ? 1 : 0.4,
+      margin: '0 auto'
     };
   };
 
@@ -1464,14 +1465,16 @@ function GameScreen({ onBack }) {
       <div style={{
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'center',
         gap: '12px',
         padding: '20px',
         background: '#2a2a2a',
         borderRadius: '16px',
         border: '2px solid #444',
-        width: '100%',
+        width: 'auto',
         maxWidth: '280px',
-        margin: '0 auto 24px auto'
+        margin: '0 auto 24px auto',
+        alignSelf: 'center'
       }}>
         {renderLightCircles()}
       </div>
