@@ -1340,7 +1340,7 @@ function GameScreen({ onBack }) {
   const handleTap = () => {
     if (gameState !== "playing") return;
 
-    // 초록불일 때만 점수 획득
+    // 초록불일 때 점수 획득
     if (light === "green") {
       setScore(prev => {
         const newScore = prev + 1;
@@ -1348,6 +1348,13 @@ function GameScreen({ onBack }) {
         if (newScore === 5 && !couponEarned) {
           issueCoupon();
         }
+        return newScore;
+      });
+    } 
+    // 빨강이나 노랑을 잘못 터치하면 감점
+    else if (light === "red" || light === "yellow") {
+      setScore(prev => {
+        const newScore = Math.max(0, prev - 1); // 점수가 0 이하로 내려가지 않도록
         return newScore;
       });
     }
@@ -1458,13 +1465,13 @@ function GameScreen({ onBack }) {
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
-        marginBottom: '24px',
         padding: '20px',
         background: '#2a2a2a',
         borderRadius: '16px',
         border: '2px solid #444',
         width: '100%',
-        maxWidth: '280px'
+        maxWidth: '280px',
+        margin: '0 auto 24px auto'
       }}>
         {renderLightCircles()}
       </div>
