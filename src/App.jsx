@@ -9,10 +9,10 @@ const mockRides = [
     id: 'ride_1',
     pickupZone: '정문',
     destinationZone: '서울역',
-    participants: 2,
-    maxParticipants: 3,
-    estimatedCost: 3500,
-    departureTime: '14:30',
+    participants: 1,
+    maxParticipants: 2,
+    estimatedCost: 6000,
+    departureTime: 'now',
     isQuiet: true,
     femaleOnly: false,
     isBlindMode: true, // 아이디 비공개
@@ -21,11 +21,11 @@ const mockRides = [
   {
     id: 'ride_2',
     pickupZone: '후문',
-    destinationZone: '서울역',
+    destinationZone: '당산역',
     participants: 2,
     maxParticipants: 3,
-    estimatedCost: 3000,
-    departureTime: '15:00',
+    estimatedCost: 4000,
+    departureTime: 'now',
     isQuiet: false,
     femaleOnly: true,
     isBlindMode: true, // 아이디 비공개
@@ -34,11 +34,11 @@ const mockRides = [
   {
     id: 'ride_3',
     pickupZone: 'ECC 앞',
-    destinationZone: '서울역',
+    destinationZone: '을지로입구역',
     participants: 2,
     maxParticipants: 3,
     estimatedCost: 4500,
-    departureTime: '14:50',
+    departureTime: '22:00',
     isQuiet: false,
     femaleOnly: false,
     isBlindMode: false, // 공개
@@ -705,7 +705,7 @@ function CreateRideScreen({ onBack, onStartMatching }) {
               />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                  🎫 할인권 사용 ({availableCoupons.length}개 보유)
+                  🎫 할인권 사용
                 </div>
                 <div style={{ fontSize: '12px', color: '#666' }}>
                   1,000원 할인 적용 (2인 쉐어 전용)
@@ -745,13 +745,15 @@ function RideListScreen({ onStartMatching }) {
   const [selectedRide, setSelectedRide] = useState(null);
 
   const handleApprove = (ride) => {
-    // 승인 버튼 클릭 시 매칭 화면으로 이동
+    // 승인 버튼 클릭 시 바로 매칭 완료 상태로 전달
     onStartMatching({
       pickupZone: ride.pickupZone,
       destinationZone: ride.destinationZone,
       maxParticipants: ride.maxParticipants,
       isQuiet: ride.isQuiet,
-      femaleOnly: ride.femaleOnly
+      femaleOnly: ride.femaleOnly,
+      skipMatching: true, // 매칭 중 화면 건너뛰기 플래그
+      existingRide: ride // 기존 팟 정보 전달
     });
     setSelectedRide(null);
   };
@@ -764,7 +766,23 @@ function RideListScreen({ onStartMatching }) {
         <div
           key={ride.id}
           className="ride-card"
-          onClick={() => setSelectedRide(ride)}
+          onClick={() => {
+            // 정문-서울역 팟은 바로 매칭 완료로 이동
+            if (ride.pickupZone === '정문' && ride.destinationZone === '서울역') {
+              onStartMatching({
+                pickupZone: ride.pickupZone,
+                destinationZone: ride.destinationZone,
+                maxParticipants: ride.maxParticipants,
+                isQuiet: ride.isQuiet,
+                femaleOnly: ride.femaleOnly,
+                skipMatching: true, // 매칭 중 화면 건너뛰기
+                existingRide: ride // 기존 팟 정보 전달
+              });
+            } else {
+              // 다른 팟은 모달 표시
+              setSelectedRide(ride);
+            }
+          }}
         >
           <div className="ride-route">
             <div className="ride-location">
@@ -776,7 +794,9 @@ function RideListScreen({ onStartMatching }) {
             </div>
           </div>
           <div className="ride-info">
-            <div style={{ color: '#2E7D32', fontWeight: 'bold' }}>🚀 지금 출발</div>
+            <div style={{ color: '#2E7D32', fontWeight: 'bold' }}>
+              {ride.departureTime === 'now' ? '🚀 지금 출발' : `⏰ ${ride.departureTime} 출발 예약`}
+            </div>
           </div>
           <div className="ride-info">
             <div className="ride-participants">
@@ -849,7 +869,7 @@ function RideListScreen({ onStartMatching }) {
             <div className="modal-content">
               <p><strong>출발:</strong> {selectedRide.pickupZone}</p>
               <p><strong>도착:</strong> {selectedRide.destinationZone}</p>
-              <p><strong>출발 시간:</strong> 지금 출발</p>
+              <p><strong>출발 시간:</strong> {selectedRide.departureTime === 'now' ? '지금 출발' : `${selectedRide.departureTime} 출발 예약`}</p>
               <p><strong>현재 인원:</strong> {selectedRide.participants}/{selectedRide.maxParticipants}명</p>
               <p><strong>예상 비용:</strong> ₩{selectedRide.estimatedCost}</p>
               {selectedRide.isBlindMode ? (
@@ -1219,10 +1239,16 @@ function GameScreen({ onBack }) {
   const [couponEarned, setCouponEarned] = useState(false);
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [lightPositions, setLightPositions] = useState({ red: 0, yellow: 1, green: 2 }); // 각 색상의 위치 (0: 위, 1: 중간, 2: 아래)
+  const [hitFeedback, setHitFeedback] = useState(null); // 'success' or 'fail'
+  const [hitAnimation, setHitAnimation] = useState(false); // 애니메이션 트리거
   const gameStartTime = useRef(null);
   const gameIntervalRef = useRef(null);
   const colorChangeTimeoutRef = useRef(null);
   const nextColorChangeTime = useRef(0);
+  const audioContextRef = useRef(null);
+  const backgroundOscillatorsRef = useRef([]); // 배경음악용 오실레이터들
+  const backgroundGainNodeRef = useRef(null); // 배경음악 볼륨 조절
+  const backgroundMusicIntervalRef = useRef(null); // 배경음악 반복 재생용
 
   // 색상 변경 속도 계산 (경과 시간에 따라) - 15초에 맞춰 느리게 조정
   const getColorChangeInterval = (elapsedSeconds) => {
@@ -1234,6 +1260,206 @@ function GameScreen({ onBack }) {
       return 800; // 10~13초: 빠르게 (0.8초)
     } else {
       return 600; // 13~15초: 매우 빠르게 (0.6초)
+    }
+  };
+
+  // AudioContext 초기화
+  const initAudioContext = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContextRef.current;
+  };
+
+  // EDM/8비트 스타일 노트 재생
+  const playEDMNote = (frequency, duration, startTime, volume = 0.05, waveType = 'square', attack = 0.01) => {
+    try {
+      const audioContext = initAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = frequency;
+      oscillator.type = waveType;
+
+      // 빠른 어택, 부드러운 릴리즈
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + attack);
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + duration - 0.02);
+      gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    } catch (error) {
+      // 사운드 재생 실패 무시
+    }
+  };
+
+  // 킥 드럼 사운드 (베이스)
+  const playKick = (startTime, volume = 0.08) => {
+    try {
+      const audioContext = initAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.setValueAtTime(60, startTime);
+      oscillator.frequency.exponentialRampToValueAtTime(30, startTime + 0.1);
+      oscillator.type = 'sine';
+
+      gainNode.gain.setValueAtTime(volume, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.15);
+    } catch (error) {
+      // 사운드 재생 실패 무시
+    }
+  };
+
+  // 배경음악 시작 (EDM/8비트 아케이드 스타일)
+  const startBackgroundMusic = () => {
+    try {
+      const audioContext = initAudioContext();
+      
+      // 기존 배경음악 정지
+      stopBackgroundMusic();
+
+      // 뽕뽕 거리는 아케이드 스타일 멜로디 패턴
+      // 빠른 템포 (약 150 BPM) - 더 경쾌하게
+      const beatInterval = 0.4; // 150 BPM = 60/150 = 0.4초 per beat
+      const totalDuration = beatInterval * 8; // 8비트 패턴 (더 짧고 반복적)
+
+      const playEDMLoop = () => {
+        const startTime = audioContext.currentTime;
+
+        // 강한 베이스 라인 - 더 낮고 강렬하게
+        const bassPattern = [
+          { time: 0, freq: 98 },     // G2
+          { time: 1, freq: 110 },    // A2
+          { time: 2, freq: 98 },     // G2
+          { time: 3, freq: 110 },    // A2
+          { time: 4, freq: 123.47 }, // B2
+          { time: 5, freq: 110 },    // A2
+          { time: 6, freq: 98 },      // G2
+          { time: 7, freq: 110 },    // A2
+        ];
+
+        // 뽕뽕 거리는 밝은 멜로디 - 높은 주파수, 반복적 패턴
+        const melodyPattern = [
+          { time: 0, freq: 659.25, dur: 0.15 },   // E5 - 뽕
+          { time: 0.25, freq: 783.99, dur: 0.15 }, // G5 - 뽕
+          { time: 0.5, freq: 880, dur: 0.15 },   // A5 - 뽕
+          { time: 0.75, freq: 783.99, dur: 0.15 }, // G5
+          { time: 1, freq: 659.25, dur: 0.15 },   // E5
+          { time: 1.25, freq: 587.33, dur: 0.15 }, // D5
+          { time: 1.5, freq: 659.25, dur: 0.2 },  // E5
+          { time: 2, freq: 880, dur: 0.15 },     // A5 - 뽕
+          { time: 2.25, freq: 987.77, dur: 0.15 }, // B5 - 뽕
+          { time: 2.5, freq: 1174.66, dur: 0.2 }, // D6 - 뽕뽕
+          { time: 2.75, freq: 987.77, dur: 0.15 }, // B5
+          { time: 3, freq: 880, dur: 0.15 },     // A5
+          { time: 3.25, freq: 783.99, dur: 0.15 }, // G5
+          { time: 3.5, freq: 659.25, dur: 0.2 },  // E5
+        ];
+
+        // 강한 킥 드럼 - 더 자주, 더 강하게
+        const kickPattern = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5];
+
+        // 베이스 라인 재생 - 볼륨 약간 증가
+        bassPattern.forEach((note) => {
+          const noteTime = startTime + (note.time * beatInterval);
+          playEDMNote(note.freq, beatInterval * 0.8, noteTime, 0.02, 'square', 0.005);
+        });
+
+        // 멜로디 라인 재생 - 밝고 경쾌하게
+        melodyPattern.forEach((note) => {
+          const noteTime = startTime + (note.time * beatInterval);
+          playEDMNote(note.freq, note.dur, noteTime, 0.025, 'square', 0.005);
+        });
+
+        // 킥 드럼 재생 - 더 강하고 자주
+        kickPattern.forEach((beat) => {
+          const kickTime = startTime + (beat * beatInterval);
+          playKick(kickTime, 0.03);
+        });
+      };
+
+      // 첫 재생
+      playEDMLoop();
+
+      // 반복 재생
+      backgroundMusicIntervalRef.current = setInterval(() => {
+        if (gameState === "playing") {
+          playEDMLoop();
+        }
+      }, totalDuration * 1000);
+
+    } catch (error) {
+      console.log('배경음악 재생 실패:', error);
+    }
+  };
+
+  // 배경음악 정지
+  const stopBackgroundMusic = () => {
+    try {
+      if (backgroundMusicIntervalRef.current) {
+        clearInterval(backgroundMusicIntervalRef.current);
+        backgroundMusicIntervalRef.current = null;
+      }
+      if (backgroundOscillatorsRef.current.length > 0) {
+        backgroundOscillatorsRef.current.forEach(({ oscillator, gainNode }) => {
+          try {
+            const audioContext = audioContextRef.current;
+            if (audioContext) {
+              gainNode.gain.cancelScheduledValues(audioContext.currentTime);
+              gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+              setTimeout(() => {
+                oscillator.stop();
+                oscillator.disconnect();
+                gainNode.disconnect();
+              }, 100);
+            }
+          } catch (error) {
+            // 이미 정지된 경우 무시
+          }
+        });
+        backgroundOscillatorsRef.current = [];
+      }
+      if (backgroundGainNodeRef.current) {
+        backgroundGainNodeRef.current.disconnect();
+        backgroundGainNodeRef.current = null;
+      }
+    } catch (error) {
+      console.log('배경음악 정지 실패:', error);
+    }
+  };
+
+  // 사운드 생성 함수 (Web Audio API)
+  const playSound = (frequency, duration, type = 'success') => {
+    try {
+      const audioContext = initAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = frequency;
+      oscillator.type = type === 'success' ? 'sine' : 'sawtooth';
+
+      // 볼륨 조절 (성공: 밝게, 실패: 어둡게)
+      gainNode.gain.setValueAtTime(type === 'success' ? 0.3 : 0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+    } catch (error) {
+      console.log('사운드 재생 실패:', error);
     }
   };
 
@@ -1308,6 +1534,9 @@ function GameScreen({ onBack }) {
     gameStartTime.current = Date.now();
     nextColorChangeTime.current = Date.now();
 
+    // 배경음악 시작
+    startBackgroundMusic();
+
     // 게임 타이머 (15초 카운트다운)
     gameIntervalRef.current = setInterval(() => {
       const elapsed = (Date.now() - gameStartTime.current) / 1000;
@@ -1319,6 +1548,7 @@ function GameScreen({ onBack }) {
         if (colorChangeTimeoutRef.current) {
           clearTimeout(colorChangeTimeoutRef.current);
         }
+        stopBackgroundMusic(); // 배경음악 정지
         setGameState("finished");
         setTimeLeft(0);
         return;
@@ -1342,6 +1572,11 @@ function GameScreen({ onBack }) {
 
     // 초록불일 때 점수 획득
     if (light === "green") {
+      // 성공 피드백
+      setHitFeedback('success');
+      setHitAnimation(true);
+      playSound(800, 0.15, 'success'); // 높은 톤, 밝은 소리
+      
       setScore(prev => {
         const newScore = prev + 1;
         // 5점 달성 시 즉시 할인권 발급
@@ -1350,17 +1585,43 @@ function GameScreen({ onBack }) {
         }
         return newScore;
       });
+
+      // 피드백 메시지 제거
+      setTimeout(() => {
+        setHitFeedback(null);
+        setHitAnimation(false);
+      }, 300);
     } 
     // 빨강이나 노랑을 잘못 터치하면 감점
     else if (light === "red" || light === "yellow") {
+      // 실패 피드백
+      setHitFeedback('fail');
+      setHitAnimation(true);
+      playSound(200, 0.2, 'fail'); // 낮은 톤, 어두운 소리
+      
       setScore(prev => {
         const newScore = Math.max(0, prev - 1); // 점수가 0 이하로 내려가지 않도록
         return newScore;
       });
+
+      // 피드백 메시지 제거
+      setTimeout(() => {
+        setHitFeedback(null);
+        setHitAnimation(false);
+      }, 400);
     }
   };
 
-  // 컴포넌트 언마운트 시 타이머 정리
+  // 게임 상태에 따라 배경음악 제어
+  useEffect(() => {
+    if (gameState === "playing") {
+      startBackgroundMusic();
+    } else {
+      stopBackgroundMusic();
+    }
+  }, [gameState]);
+
+  // 컴포넌트 언마운트 시 타이머 및 배경음악 정리
   useEffect(() => {
     return () => {
       if (gameIntervalRef.current) {
@@ -1369,12 +1630,16 @@ function GameScreen({ onBack }) {
       if (colorChangeTimeoutRef.current) {
         clearTimeout(colorChangeTimeoutRef.current);
       }
+      stopBackgroundMusic();
     };
   }, []);
 
   // 각 신호등 동그라미 스타일
   const getLightCircleStyle = (colorName) => {
     const isActive = light === colorName;
+    const isHit = hitFeedback === 'success' && colorName === 'green' && isActive;
+    const isMiss = hitFeedback === 'fail' && (colorName === 'red' || colorName === 'yellow') && isActive;
+    
     const colors = {
       red: { 
         active: { bg: "#ef4444", shadow: "rgba(239, 68, 68, 0.6)" },
@@ -1390,16 +1655,34 @@ function GameScreen({ onBack }) {
       }
     };
     const color = isActive ? colors[colorName].active : colors[colorName].inactive;
+    
+    // 타격감 효과: 성공 시 크기 확대, 실패 시 빨간색 깜빡임
+    let scale = 1;
+    let bgColor = color.bg;
+    let shadow = isActive ? `0 0 30px ${color.shadow}` : 'none';
+    
+    if (isHit && hitAnimation) {
+      scale = 1.3;
+      bgColor = "#4ade80"; // 더 밝은 초록색
+      shadow = "0 0 50px rgba(74, 222, 128, 0.8)";
+    } else if (isMiss && hitAnimation) {
+      scale = 1.1;
+      bgColor = "#dc2626"; // 더 밝은 빨간색
+      shadow = "0 0 40px rgba(220, 38, 38, 0.8)";
+    }
+    
     return {
       borderRadius: '50%',
       width: '80px',
       height: '80px',
-      transition: 'all 0.3s ease-in-out',
-      background: color.bg,
-      boxShadow: isActive ? `0 0 30px ${color.shadow}` : 'none',
+      transition: isHit || isMiss ? 'all 0.1s ease-out' : 'all 0.3s ease-in-out',
+      background: bgColor,
+      boxShadow: shadow,
       border: isActive ? '2px solid rgba(255, 255, 255, 0.3)' : '2px solid rgba(0, 0, 0, 0.3)',
       opacity: isActive ? 1 : 0.4,
-      margin: '0 auto'
+      margin: '0 auto',
+      transform: `scale(${scale})`,
+      zIndex: isHit || isMiss ? 10 : 1
     };
   };
 
@@ -1431,12 +1714,40 @@ function GameScreen({ onBack }) {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        background: '#1a1a1a',
+        background: hitFeedback === 'fail' && hitAnimation ? '#2a1a1a' : '#1a1a1a',
         color: 'white',
         padding: '20px 16px',
-        cursor: gameState === 'playing' ? 'pointer' : 'default'
+        cursor: gameState === 'playing' ? 'pointer' : 'default',
+        transition: 'background 0.2s ease',
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
+      {/* 타격감 피드백 메시지 */}
+      {hitFeedback && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: hitFeedback === 'success' ? '48px' : '36px',
+            fontWeight: 'bold',
+            color: hitFeedback === 'success' ? '#4ade80' : '#ef4444',
+            textShadow: hitFeedback === 'success' 
+              ? '0 0 20px rgba(74, 222, 128, 0.8)' 
+              : '0 0 20px rgba(239, 68, 68, 0.8)',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            animation: hitFeedback === 'success' 
+              ? 'successPop 0.3s ease-out' 
+              : 'failShake 0.4s ease-out',
+            opacity: hitAnimation ? 1 : 0
+          }}
+        >
+          {hitFeedback === 'success' ? '✓ 성공!' : '✗ 실패!'}
+        </div>
+      )}
       <h1 style={{ fontSize: '20px', marginBottom: '20px', fontWeight: 'bold', textAlign: 'center' }}>
         STOP THE LIGHT
       </h1>
@@ -1758,7 +2069,7 @@ function ProfileScreen({ userInfo, onUpdateUserInfo }) {
           </div>
         </div>
 
-        <div className="section-title">내 할인권 ({coupons.length})</div>
+        <div className="section-title">내 할인권</div>
         {coupons.length === 0 ? (
           <div className="card">
             <div className="card-subtitle" style={{ textAlign: 'center', padding: '20px' }}>
@@ -1769,53 +2080,65 @@ function ProfileScreen({ userInfo, onUpdateUserInfo }) {
             </div>
           </div>
         ) : (
-          coupons.map((coupon) => (
-            <div key={coupon.id} className="card" style={{
-              background: '#FFFFFF',
-              border: '2px solid #D0D0D0',
-              color: '#333'
-            }}>
-              <div className="card-header">
-                <div className="card-title" style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  color: '#333'
-                }}>
-                  🎫 {coupon.type}
-                </div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF9800' }}>
-                  {coupon.discount} 할인
-                </div>
-              </div>
-              <div className="card-subtitle" style={{ marginTop: '8px', color: '#666' }}>
-                {coupon.description}
-              </div>
-              <div style={{
-                marginTop: '8px',
-                padding: '8px',
-                background: 'rgba(0, 0, 0, 0.05)',
-                borderRadius: '8px',
-                fontSize: '12px',
-                color: '#666',
-                fontWeight: 'bold'
+          <div className="card" style={{
+            background: '#FFFFFF',
+            border: '2px solid #D0D0D0',
+            color: '#333'
+          }}>
+            <div className="card-header">
+              <div className="card-title" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#333'
               }}>
-                ⚠️ 2인이상 쉐어택시 이용시 사용가능
+                🎫 {coupons[0].type}
               </div>
-              <div style={{ 
-                fontSize: '12px', 
-                color: '#666', 
-                marginTop: '8px',
-                display: 'flex',
-                justifyContent: 'space-between'
-              }}>
-                <span>발급일: {new Date(coupon.earnedDate).toLocaleDateString('ko-KR')}</span>
-                <span>만료일: {new Date(coupon.expiryDate).toLocaleDateString('ko-KR')}</span>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF9800' }}>
+                {coupons[0].discount} 할인
               </div>
             </div>
-          ))
+            <div className="card-subtitle" style={{ marginTop: '8px', color: '#666' }}>
+              {coupons[0].description}
+            </div>
+            <div style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: 'rgba(0, 0, 0, 0.05)',
+              borderRadius: '8px',
+              fontSize: '12px',
+              color: '#666',
+              fontWeight: 'bold'
+            }}>
+              ⚠️ 2인이상 쉐어택시 이용시 사용가능
+            </div>
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#666', 
+              marginTop: '8px',
+              display: 'flex',
+              justifyContent: 'space-between'
+            }}>
+              <span>발급일: {new Date(coupons[0].earnedDate).toLocaleDateString('ko-KR')}</span>
+              <span>만료일: {new Date(coupons[0].expiryDate).toLocaleDateString('ko-KR')}</span>
+            </div>
+            {coupons.length > 1 && (
+              <div style={{
+                marginTop: '12px',
+                padding: '8px',
+                background: '#E8F5E9',
+                borderRadius: '8px',
+                fontSize: '12px',
+                color: '#2E7D32',
+                fontWeight: 'bold',
+                textAlign: 'center'
+              }}>
+                +{coupons.length - 1}개의 할인권이 더 있습니다
+              </div>
+            )}
+          </div>
         )}
 
         <div className="section-title">설정</div>
@@ -2086,29 +2409,49 @@ function RatingScreen({ matchedRide, participants: matchedParticipants, onComple
 
 // 매칭 화면
 function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
-  const [isMatching, setIsMatching] = useState(true);
+  const [isMatching, setIsMatching] = useState(!rideInfo.skipMatching); // skipMatching이 true면 바로 완료 화면
   const [matchedRide, setMatchedRide] = useState(null);
   const [showRating, setShowRating] = useState(false);
 
   React.useEffect(() => {
-    // 5초 후 매칭 완료 시뮬레이션
+    // 기존 팟에 참여하는 경우 바로 매칭 완료
+    if (rideInfo.skipMatching && rideInfo.existingRide) {
+      setIsMatching(false);
+      setMatchedRide({
+        ...rideInfo.existingRide,
+        pickupZone: rideInfo.existingRide.pickupZone,
+        destinationZone: rideInfo.existingRide.destinationZone,
+        participants: rideInfo.existingRide.maxParticipants, // 인원이 다 참
+        maxParticipants: rideInfo.existingRide.maxParticipants,
+        estimatedCost: rideInfo.existingRide.estimatedCost,
+        departureTime: rideInfo.existingRide.departureTime, // 출발 시간 포함
+        matchedParticipants: rideInfo.existingRide.participantInfo || []
+      });
+      return;
+    }
+
+    // 새 팟 생성 시 5초 후 매칭 완료 시뮬레이션
     const timer = setTimeout(() => {
       setIsMatching(false);
       // 함께 탑승한 사람들 더미 데이터 (실제로는 매칭 결과에서 받아옴)
-      const matchedParticipants = [
+      // maxParticipants에 맞춰서 인원 조정 (본인 제외)
+      const availableParticipants = [
         { id: 1, nickname: '귀여운 돼지', role: 'student', emoji: '🐷' },
         { id: 2, nickname: '치키차카', role: 'graduate', emoji: '🐱' }
       ];
+      // maxParticipants - 1 (본인 제외)만큼만 선택
+      const matchedParticipants = availableParticipants.slice(0, rideInfo.maxParticipants - 1);
       setMatchedRide({
         ...rideInfo,
-        participants: matchedParticipants.length + 1, // 본인 포함
+        participants: rideInfo.maxParticipants, // 최대 인원만큼 참여
         estimatedCost: Math.floor(12000 / rideInfo.maxParticipants),
+        departureTime: rideInfo.departureTime || 'now', // 출발 시간 포함
         matchedParticipants: matchedParticipants
       });
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [rideInfo]);
 
   if (isMatching) {
     return (
@@ -2187,6 +2530,9 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
     );
   }
 
+  // matchedRide가 없으면 rideInfo를 사용
+  const displayRide = matchedRide || rideInfo;
+
   return (
     <div style={{ 
       padding: '20px 16px',
@@ -2205,47 +2551,52 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
         <span style={{ fontSize: '40px' }}>✅</span>
       </div>
       <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '10px' }}>매칭 완료!</h2>
-      <p style={{ color: '#666', marginBottom: '20px', fontSize: '14px' }}>함께 이동할 이화인을 찾았어요</p>
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '16px',
-        marginBottom: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <span style={{ color: '#666' }}>총 인원</span>
-          <span style={{ fontWeight: 'bold' }}>{matchedRide.participants}명</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <span style={{ color: '#666' }}>예상 총 요금</span>
-          <span style={{ fontWeight: 'bold' }}>₩{matchedRide.estimatedCost * matchedRide.participants}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '16px', borderTop: '1px solid #eee' }}>
-          <span style={{ color: '#666' }}>1인당 예상 요금</span>
-          <span style={{ fontWeight: 'bold', fontSize: '20px', color: '#2E7D32' }}>₩{matchedRide.estimatedCost}</span>
-        </div>
-      </div>
-      <div style={{
-        background: '#E8F5E9',
-        border: '2px solid #2E7D32',
-        borderRadius: '12px',
-        padding: '20px',
-        textAlign: 'center',
-        marginBottom: '20px',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <div style={{ fontSize: '40px', marginBottom: '12px' }}>🚕</div>
-        <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#2E7D32', marginBottom: '6px' }}>
-          택시 출발위치로 이동해주세요
-        </p>
-        <p style={{ fontSize: '13px', color: '#666' }}>
-          {matchedRide.pickupZone}
-        </p>
-      </div>
+      {displayRide && (
+        <>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            width: '100%',
+            maxWidth: '400px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <span style={{ color: '#666' }}>총 인원</span>
+              <span style={{ fontWeight: 'bold' }}>{displayRide.participants || displayRide.maxParticipants}명</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <span style={{ color: '#666' }}>예상 총 요금</span>
+              <span style={{ fontWeight: 'bold' }}>₩{(displayRide.estimatedCost || 0) * (displayRide.participants || displayRide.maxParticipants)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '16px', borderTop: '1px solid #eee' }}>
+              <span style={{ color: '#666' }}>1인당 예상 요금</span>
+              <span style={{ fontWeight: 'bold', fontSize: '20px', color: '#2E7D32' }}>₩{displayRide.estimatedCost || 0}</span>
+            </div>
+          </div>
+          <div style={{
+            background: '#E8F5E9',
+            border: '2px solid #2E7D32',
+            borderRadius: '12px',
+            padding: '20px',
+            textAlign: 'center',
+            marginBottom: '20px',
+            width: '100%',
+            maxWidth: '400px'
+          }}>
+            <div style={{ fontSize: '40px', marginBottom: '12px' }}>🚕</div>
+            <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#2E7D32', marginBottom: '6px' }}>
+              {displayRide.departureTime && displayRide.departureTime !== 'now' 
+                ? `예약시간 ${displayRide.departureTime} 출발위치 도착해주세요`
+                : '택시 출발위치로 이동해주세요'}
+            </p>
+            <p style={{ fontSize: '13px', color: '#666' }}>
+              {displayRide.pickupZone}
+            </p>
+          </div>
+        </>
+      )}
       <button
         onClick={() => setShowRating(true)}
         style={{
