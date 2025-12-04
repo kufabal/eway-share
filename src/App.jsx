@@ -402,8 +402,8 @@ function HomeScreen({ onNavigate, userInfo }) {
         </div>
         <div className="user-info">
           <h2>{userInfo?.nickname || '벗123'}</h2>
-          <div className="manner-temp">
-            🌡️ 매너온도 {(userInfo?.mannerTemp || 36.5).toFixed(1)}°C
+          <div className="manner-temp" style={{ color: '#2E7D32' }}>
+            🌱 에코점수 {userInfo?.ecoScore || 0}점
           </div>
         </div>
       </div>
@@ -423,28 +423,37 @@ function HomeScreen({ onNavigate, userInfo }) {
         </button>
       </div>
 
-      <div className="section-title">인기 목적지</div>
+      <div className="section-title">지금 출발해요</div>
       <div className="card" onClick={() => onNavigate('list')}>
         <div className="card-header">
           <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <MapPin size={20} color="#2E7D32" />
-            신촌역
+            서울역
           </div>
         </div>
-        <div className="card-subtitle">지금 3개 팟 대기중</div>
+        <div className="card-subtitle">지금 1개 팟 대기중</div>
       </div>
       <div className="card" onClick={() => onNavigate('list')}>
         <div className="card-header">
           <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <MapPin size={20} color="#2E7D32" />
-            홍대입구역
+            당산역
           </div>
         </div>
-        <div className="card-subtitle">지금 5개 팟 대기중</div>
+        <div className="card-subtitle">지금 1개 팟 대기중</div>
+      </div>
+      <div className="card" onClick={() => onNavigate('list')}>
+        <div className="card-header">
+          <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MapPin size={20} color="#2E7D32" />
+            을지로입구역
+          </div>
+        </div>
+        <div className="card-subtitle">지금 1개 팟 대기중</div>
       </div>
 
       <div className="section-title">최근 이용 내역</div>
-      <div className="card">
+      <div className="card" style={{ background: '#F5F5F5' }}>
         <div className="card-header">
           <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <MapPin size={20} color="#2E7D32" />
@@ -459,7 +468,7 @@ function HomeScreen({ onNavigate, userInfo }) {
 }
 
 // 팟 만들기 화면
-function CreateRideScreen({ onBack, onStartMatching }) {
+function CreateRideScreen({ onBack, onStartMatching, userInfo, onUpdateUserInfo }) {
   const [pickupZone, setPickupZone] = useState('');
   const [destinationZone, setDestinationZone] = useState('');
   const [maxParticipants, setMaxParticipants] = useState(2);
@@ -467,6 +476,8 @@ function CreateRideScreen({ onBack, onStartMatching }) {
   const [femaleOnly, setFemaleOnly] = useState(false);
   const [isHonorTaxi, setIsHonorTaxi] = useState(false);
   const [useCoupon, setUseCoupon] = useState(false);
+  const [useEcoScore, setUseEcoScore] = useState(false);
+  const [ecoScoreDiscount, setEcoScoreDiscount] = useState(0);
   const [favorites, setFavorites] = useState(['서울시 마포구 신촌로 123', '서울시 마포구 홍익로 123']);
   const [showFavorites, setShowFavorites] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
@@ -481,10 +492,25 @@ function CreateRideScreen({ onBack, onStartMatching }) {
   }, []);
 
   const baseCost = Math.floor(12000 / maxParticipants);
-  const discountAmount = useCoupon && maxParticipants === 2 && availableCoupons.length > 0 
+  const couponDiscount = useCoupon && maxParticipants === 2 && availableCoupons.length > 0 
     ? 1000 
     : 0;
-  const estimatedCost = baseCost - discountAmount;
+  
+  // 에코점수 할인 (1점 = 100원, 최대 사용 가능한 점수만큼)
+  const ecoScore = userInfo?.ecoScore || 0;
+  const canUseEcoScore = ecoScore >= 50;
+  const maxEcoDiscount = Math.floor(ecoScore * 100); // 1점 = 100원
+  const requestedEcoDiscount = ecoScoreDiscount * 100; // 사용자가 요청한 할인 금액
+  const ecoDiscountAmount = useEcoScore && canUseEcoScore 
+    ? Math.min(requestedEcoDiscount, maxEcoDiscount, baseCost) // 최대 사용 가능한 만큼
+    : 0;
+  // 실제 사용된 점수 (할인 금액 / 100, 소수점 올림)
+  const actualEcoScoreUsed = useEcoScore && ecoDiscountAmount > 0 
+    ? Math.ceil(ecoDiscountAmount / 100)
+    : 0;
+  
+  const totalDiscount = couponDiscount + ecoDiscountAmount;
+  const estimatedCost = Math.max(0, baseCost - totalDiscount);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -492,6 +518,17 @@ function CreateRideScreen({ onBack, onStartMatching }) {
       alert('출발지와 목적지를 선택해주세요');
       return;
     }
+    
+    // 에코점수 사용 시 차감 (실제 할인된 금액에 맞게 차감)
+    if (useEcoScore && actualEcoScoreUsed > 0 && onUpdateUserInfo) {
+      const currentScore = userInfo?.ecoScore || 0;
+      const newScore = Math.max(0, currentScore - actualEcoScoreUsed);
+      onUpdateUserInfo({ ...userInfo, ecoScore: newScore });
+      if (actualEcoScoreUsed > 0) {
+        alert(`에코점수 ${actualEcoScoreUsed}점이 사용되었습니다. (${ecoDiscountAmount.toLocaleString()}원 할인) 🌱`);
+      }
+    }
+    
     // 즐겨찾기에 추가 (중복 체크)
     if (!favorites.includes(destinationZone)) {
       setFavorites([...favorites, destinationZone]);
@@ -715,18 +752,94 @@ function CreateRideScreen({ onBack, onStartMatching }) {
           </div>
         )}
 
+        {/* 에코점수 할인 옵션 (50점 이상일 때만) */}
+        {canUseEcoScore && (
+          <div className="form-group">
+            <label className="checkbox-item" style={{
+              background: '#E8F5E9',
+              border: '2px solid #4CAF50',
+              borderRadius: '8px',
+              padding: '16px'
+            }}>
+              <input
+                type="checkbox"
+                checked={useEcoScore}
+                onChange={(e) => {
+                  setUseEcoScore(e.target.checked);
+                  if (!e.target.checked) {
+                    setEcoScoreDiscount(0);
+                  }
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                  🌱 에코점수 할인 사용
+                </div>
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                  보유 에코점수: {ecoScore}점 (1점 = 100원)
+                </div>
+                {useEcoScore && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <input
+                        type="number"
+                        min="1"
+                        max={ecoScore}
+                        value={ecoScoreDiscount || ''}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          setEcoScoreDiscount(Math.min(Math.max(0, value), ecoScore));
+                        }}
+                        placeholder="사용할 점수"
+                        style={{
+                          width: '80px',
+                          padding: '6px',
+                          border: '1px solid #4CAF50',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                      <span style={{ fontSize: '12px', color: '#666' }}>
+                        점 사용
+                      </span>
+                    </div>
+                    {ecoScoreDiscount > 0 && (
+                      <div style={{ fontSize: '11px', color: '#2E7D32', fontWeight: 'bold', marginTop: '4px' }}>
+                        예상 할인: {(Math.min(ecoScoreDiscount * 100, baseCost)).toLocaleString()}원
+                      </div>
+                    )}
+                    <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+                      최대 사용 가능: {ecoScore}점 ({Math.min(maxEcoDiscount, baseCost).toLocaleString()}원)
+                    </div>
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+        )}
+
         <div className="cost-estimate">
           <div className="cost-label">예상 1인당 비용</div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-            {useCoupon && discountAmount > 0 && (
+            {(useCoupon || useEcoScore) && totalDiscount > 0 && (
               <div style={{ fontSize: '14px', color: '#d32f2f', textDecoration: 'line-through' }}>
                 ₩{baseCost}
               </div>
             )}
             <div className="cost-value">₩{estimatedCost}</div>
-            {useCoupon && discountAmount > 0 && (
+            {totalDiscount > 0 && (
               <div style={{ fontSize: '12px', color: '#2E7D32', fontWeight: 'bold' }}>
-                할인: -₩{discountAmount}
+                할인: -₩{totalDiscount.toLocaleString()}
+                {useCoupon && couponDiscount > 0 && (
+                  <span style={{ fontSize: '11px', color: '#666', marginLeft: '4px' }}>
+                    (할인권: -₩{couponDiscount.toLocaleString()})
+                  </span>
+                )}
+                {useEcoScore && ecoDiscountAmount > 0 && (
+                  <span style={{ fontSize: '11px', color: '#666', marginLeft: '4px' }}>
+                    (에코점수: -₩{ecoDiscountAmount.toLocaleString()})
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -923,7 +1036,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       content: '오늘 택시 쉐어링 너무 좋았어요! 함께 탄 분들이 모두 친절하셨고, 비용도 절약할 수 있어서 만족합니다 😊', 
       time: '2시간 전',
       likes: 5,
-      type: 'share'
+      type: 'share',
+      ecoScore: 8
     },
     { 
       id: 2, 
@@ -932,7 +1046,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       content: '조용히 가기 옵션 덕분에 편하게 이동했어요. 다음에도 이용할게요!', 
       time: '5시간 전',
       likes: 3,
-      type: 'share'
+      type: 'share',
+      ecoScore: 51
     },
     { 
       id: 3, 
@@ -941,7 +1056,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       content: '매너 온도 시스템이 있어서 더 안전하게 느껴져요. 이화인들만 모여서 신뢰가 가네요!', 
       time: '1일 전',
       likes: 8,
-      type: 'share'
+      type: 'share',
+      ecoScore: 90
     }
   ]);
 
@@ -953,7 +1069,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       content: '명예의 택시 기사님 정말 친절하셨어요! 안전 운전도 최고고요 👍', 
       time: '3시간 전',
       likes: 12,
-      type: 'taxi'
+      type: 'taxi',
+      ecoScore: 8
     },
     { 
       id: 102, 
@@ -962,7 +1079,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       content: '오늘 택시가 깨끗하고 편안했어요. 다음에도 같은 기사님 차를 타고 싶네요!', 
       time: '6시간 전',
       likes: 7,
-      type: 'taxi'
+      type: 'taxi',
+      ecoScore: 90
     }
   ]);
 
@@ -978,7 +1096,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
         content: newPost,
         time: '방금 전',
         likes: 0,
-        type: activeTab
+        type: activeTab,
+        ecoScore: userInfo?.ecoScore || 0
       };
       
       if (activeTab === 'share') {
@@ -990,12 +1109,12 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       setNewPost('');
       setShowWriteForm(false);
       
-      // 후기 작성 시 매너온도 상승 (0.1도씩)
+      // 후기 작성 시 에코점수 상승 (1점씩)
       if (onUpdateUserInfo) {
-        const currentTemp = userInfo?.mannerTemp || 36.5;
-        const newTemp = Math.min(currentTemp + 0.1, 37.0); // 최대 37.0도
-        onUpdateUserInfo({ ...userInfo, mannerTemp: newTemp });
-        alert(`후기를 작성했습니다! 매너온도가 ${newTemp.toFixed(1)}°C로 상승했습니다!`);
+        const currentScore = userInfo?.ecoScore || 0;
+        const newScore = currentScore + 1; // 1점씩 증가 (최대 제한 없음)
+        onUpdateUserInfo({ ...userInfo, ecoScore: newScore });
+        alert(`후기를 작성했습니다! 에코점수가 ${newScore}점으로 상승했습니다! 🌱`);
       }
     }
   };
@@ -1142,89 +1261,108 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {currentPosts.map((post) => (
-          <div
-            key={post.id}
-            style={{
-              background: 'white',
-              borderRadius: '12px',
-              padding: '16px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+        {currentPosts.map((post) => {
+          // 에코점수에 따른 테두리 색상 결정
+          const ecoScore = post.ecoScore || 0;
+          let borderColor = 'transparent';
+          let borderWidth = '0px';
+          
+          if (ecoScore >= 90) {
+            borderColor = '#FFC107'; // 노란색
+            borderWidth = '3px';
+          } else if (ecoScore > 50) {
+            borderColor = '#C8E6C9'; // 아주 연한 연두색
+            borderWidth = '3px';
+          } else if (ecoScore <= 10) {
+            borderColor = 'transparent'; // 테두리 없음
+            borderWidth = '0px';
+          }
+          
+          return (
+            <div
+              key={post.id}
+              style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '16px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: '#9E9E9E',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '20px',
+                  border: `${borderWidth} solid ${borderColor}`
+                }}>
+                  {post.emoji || post.author[0]}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '4px' }}>
+                    {post.author}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {post.time}
+                  </div>
+                </div>
+              </div>
               <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: '#2E7D32',
-                color: 'white',
+                fontSize: '14px',
+                lineHeight: '1.6',
+                color: '#333',
+                marginBottom: '12px',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {post.content}
+              </div>
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 'bold',
-                fontSize: '20px'
+                gap: '16px',
+                paddingTop: '12px',
+                borderTop: '1px solid #eee'
               }}>
-                {post.emoji || post.author[0]}
+                <button
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    color: '#666',
+                    fontSize: '14px'
+                  }}
+                >
+                  <span>👍</span>
+                  <span>{post.likes}</span>
+                </button>
+                <button
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    color: '#666',
+                    fontSize: '14px'
+                  }}
+                >
+                  <MessageSquare size={16} />
+                  <span>댓글</span>
+                </button>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '4px' }}>
-                  {post.author}
-                </div>
-                <div style={{ fontSize: '12px', color: '#666' }}>
-                  {post.time}
-                </div>
-              </div>
             </div>
-            <div style={{
-              fontSize: '14px',
-              lineHeight: '1.6',
-              color: '#333',
-              marginBottom: '12px',
-              whiteSpace: 'pre-wrap'
-            }}>
-              {post.content}
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              paddingTop: '12px',
-              borderTop: '1px solid #eee'
-            }}>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  cursor: 'pointer',
-                  color: '#666',
-                  fontSize: '14px'
-                }}
-              >
-                <span>👍</span>
-                <span>{post.likes}</span>
-              </button>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  cursor: 'pointer',
-                  color: '#666',
-                  fontSize: '14px'
-                }}
-              >
-                <MessageSquare size={16} />
-                <span>댓글</span>
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
@@ -1263,12 +1401,47 @@ function GameScreen({ onBack }) {
     }
   };
 
-  // AudioContext 초기화
+  // AudioContext 초기화 (동기)
   const initAudioContext = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
     return audioContextRef.current;
+  };
+
+  // AudioContext 활성화 (비동기, 사용자 상호작용 후 호출) - iOS 호환성 개선
+  const resumeAudioContext = async () => {
+    try {
+      const audioContext = audioContextRef.current;
+      if (!audioContext) {
+        return;
+      }
+
+      // iOS에서 오디오를 "unlock"하기 위해 빈 오디오 버퍼 재생
+      if (audioContext.state === 'suspended') {
+        // iOS 호환: 빈 오디오 버퍼로 오디오 시스템 활성화
+        const buffer = audioContext.createBuffer(1, 1, 22050);
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContext.destination);
+        source.start(0);
+        source.stop(0.01);
+      }
+
+      // AudioContext 상태가 'running'이 될 때까지 기다림
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      // iOS에서 상태 변경이 비동기일 수 있으므로 확인
+      let attempts = 0;
+      while (audioContext.state !== 'running' && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        attempts++;
+      }
+    } catch (error) {
+      console.log('오디오 컨텍스트 활성화 실패:', error);
+    }
   };
 
   // EDM/8비트 스타일 노트 재생
@@ -1326,8 +1499,26 @@ function GameScreen({ onBack }) {
     try {
       const audioContext = initAudioContext();
       
+      // iOS 호환: AudioContext가 활성화되지 않았으면 시도
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(err => {
+          console.log('배경음악 재생 실패 (AudioContext suspended):', err);
+          return;
+        });
+      }
+      
       // 기존 배경음악 정지
       stopBackgroundMusic();
+      
+      // iOS에서 AudioContext가 'running' 상태가 아니면 잠시 대기 후 재시도
+      if (audioContext.state !== 'running') {
+        setTimeout(() => {
+          if (audioContext.state === 'running') {
+            startBackgroundMusic();
+          }
+        }, 200);
+        return;
+      }
 
       // 뽕뽕 거리는 아케이드 스타일 멜로디 패턴
       // 빠른 템포 (약 150 BPM) - 더 경쾌하게
@@ -1524,7 +1715,31 @@ function GameScreen({ onBack }) {
   };
 
   // 게임 시작 로직
-  const startGame = () => {
+  const startGame = async () => {
+    // iOS 호환: 사용자 상호작용 이벤트 핸들러 내에서 AudioContext 생성 및 활성화
+    try {
+      // AudioContext 초기화 (사용자 상호작용 이벤트 핸들러 내에서)
+      initAudioContext();
+      
+      // AudioContext 활성화 (iOS에서 중요)
+      await resumeAudioContext();
+      
+      // iOS에서 오디오가 활성화되었는지 확인 후 배경음악 시작
+      if (audioContextRef.current && audioContextRef.current.state === 'running') {
+        // 배경음악 시작 (약간의 지연을 두어 iOS에서 안정적으로 작동하도록)
+        setTimeout(() => {
+          startBackgroundMusic();
+        }, 100);
+      } else {
+        // 상태가 'running'이 아니어도 시도 (일부 경우 작동할 수 있음)
+        startBackgroundMusic();
+      }
+    } catch (error) {
+      console.log('오디오 초기화 오류:', error);
+      // 오디오 실패해도 게임은 계속 진행
+      startBackgroundMusic();
+    }
+    
     setGameState("playing");
     setLight("red");
     setScore(0);
@@ -1533,9 +1748,6 @@ function GameScreen({ onBack }) {
     setLightPositions(shufflePositions()); // 초기 위치 랜덤 배치
     gameStartTime.current = Date.now();
     nextColorChangeTime.current = Date.now();
-
-    // 배경음악 시작
-    startBackgroundMusic();
 
     // 게임 타이머 (15초 카운트다운)
     gameIntervalRef.current = setInterval(() => {
@@ -2024,18 +2236,38 @@ function ProfileScreen({ userInfo, onUpdateUserInfo }) {
       </div>
 
       <div style={{ padding: '20px' }}>
-        <div style={{ background: '#FFF3E0', border: '2px solid #FF9800', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ background: '#E8F5E9', border: '2px solid #2E7D32', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '18px', fontWeight: 'bold' }}>매너 온도</span>
-            <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#FF9800' }}>🌡️ {(userInfo?.mannerTemp || 36.5).toFixed(1)}°C</span>
+            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#2E7D32' }}>🌱 에코점수</span>
+            <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#2E7D32' }}>{userInfo?.ecoScore || 0}점</span>
           </div>
           <div style={{ height: '8px', background: '#ddd', borderRadius: '4px', overflow: 'hidden' }}>
-            <div style={{ 
-              width: `${Math.min(((userInfo?.mannerTemp || 36.5) - 36.0) * 100, 100)}%`, 
-              height: '100%', 
-              background: '#FF9800' 
-            }}></div>
+            {(() => {
+              const ecoScore = userInfo?.ecoScore || 0;
+              let barColor = '#9E9E9E'; // 회색 (기본값, 10점 이하)
+              
+              if (ecoScore >= 90) {
+                barColor = '#FFC107'; // 노란색 (90점 이상)
+              } else if (ecoScore > 50) {
+                barColor = '#C8E6C9'; // 아주 연한 연두색 (50점 초과 ~ 90점 미만)
+              } else if (ecoScore <= 10) {
+                barColor = '#9E9E9E'; // 회색 (10점 이하)
+              }
+              
+              return (
+                <div style={{ 
+                  width: `${Math.min((ecoScore / 100) * 100, 100)}%`, 
+                  height: '100%', 
+                  background: barColor,
+                  transition: 'all 0.3s ease'
+                }}></div>
+              );
+            })()}
           </div>
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '8px', lineHeight: '1.5' }}>
+            쉐어택시를 이용하면 기후위기에서 벗어날 수 있어요!<br />
+            함께 택시를 타면 CO₂를 줄이고 지구를 지켜요 🌍
+          </p>
         </div>
 
         <div className="stats-grid">
@@ -2172,158 +2404,49 @@ function ProfileScreen({ userInfo, onUpdateUserInfo }) {
   );
 }
 
-// 매너온도 평가 화면
-function RatingScreen({ matchedRide, participants: matchedParticipants, onComplete, onCancel }) {
-  // 함께 탑승한 사람들 목록 (매칭 결과에서 받아옴)
-  const [participants] = useState(matchedParticipants || [
-    { id: 1, nickname: '귀여운 돼지', role: 'student', emoji: '🐷' },
-    { id: 2, nickname: '치키차카', role: 'graduate', emoji: '🐱' }
-  ]);
-  
+// 매너온도 평가 화면 (택시기사만 평가)
+function RatingScreen({ matchedRide, participants: matchedParticipants, onComplete, onCancel, onUpdateUserInfo, userInfo }) {
   const [driverRating, setDriverRating] = useState(0);
-  const [participantRatings, setParticipantRatings] = useState({});
-  const [currentParticipantIndex, setCurrentParticipantIndex] = useState(0);
-
-  const handleParticipantRating = (participantId, rating) => {
-    setParticipantRatings({
-      ...participantRatings,
-      [participantId]: rating
-    });
-  };
-
-  const handleNext = () => {
-    if (currentParticipantIndex < participants.length - 1) {
-      setCurrentParticipantIndex(currentParticipantIndex + 1);
-    } else {
-      // 모든 참여자 평가 완료, 택시기사 평가로
-      setCurrentParticipantIndex(-1);
-    }
-  };
+  const [ecoScoreAdded, setEcoScoreAdded] = useState(false);
 
   const handleSubmit = () => {
+    // 택시기사 평가 완료 시 에코점수 추가
+    if (!ecoScoreAdded && onUpdateUserInfo) {
+      const currentScore = userInfo?.ecoScore || 0;
+      const newScore = currentScore + 1; // 택시 이용 시 1점 추가
+      onUpdateUserInfo({ ...userInfo, ecoScore: newScore });
+      setEcoScoreAdded(true);
+    }
+    
     const allRatings = {
-      participants: participantRatings,
       driver: driverRating
     };
     onComplete(allRatings);
   };
 
-  const isAllParticipantsRated = participants.every(p => participantRatings[p.id] !== undefined);
-  const canSubmit = isAllParticipantsRated && driverRating > 0;
-
-  // 참여자 평가 단계
-  if (currentParticipantIndex >= 0 && currentParticipantIndex < participants.length) {
-    const participant = participants[currentParticipantIndex];
-    const currentRating = participantRatings[participant.id] || 0;
-
-    return (
-      <div className="modal-overlay" style={{ zIndex: 1000 }}>
-        <div className="modal" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            매너온도 평가
-            <div style={{ fontSize: '14px', fontWeight: 'normal', color: '#666', marginTop: '4px' }}>
-              {currentParticipantIndex + 1} / {participants.length + 1}
-            </div>
-          </div>
-          <div className="modal-content">
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <div style={{
-                width: '80px',
-                height: '80px',
-                borderRadius: '50%',
-                background: '#2E7D32',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '40px',
-                fontWeight: 'bold',
-                margin: '0 auto 16px'
-              }}>
-                {participant.emoji || participant.nickname[0]}
-              </div>
-              <h3 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>
-                {participant.nickname}
-              </h3>
-              <p style={{ color: '#666', fontSize: '14px' }}>
-                {participant.role === 'student' ? '학부생' : participant.role === 'graduate' ? '대학원생' : participant.role}
-              </p>
-            </div>
-
-            <div style={{ marginBottom: '32px' }}>
-              <p style={{ textAlign: 'center', marginBottom: '24px', fontSize: '16px', fontWeight: 'bold' }}>
-                이 분의 매너는 어떠셨나요?
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                {[
-                  { value: 1, label: '매우 불만족', emoji: '😡', temp: '36.0°C' },
-                  { value: 2, label: '불만족', emoji: '😕', temp: '36.2°C' },
-                  { value: 3, label: '보통', emoji: '😐', temp: '36.5°C' },
-                  { value: 4, label: '만족', emoji: '😊', temp: '36.7°C' },
-                  { value: 5, label: '매우 만족', emoji: '😍', temp: '37.0°C' }
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => handleParticipantRating(participant.id, option.value)}
-                    style={{
-                      padding: '12px',
-                      border: currentRating === option.value ? '3px solid #2E7D32' : '2px solid #ddd',
-                      borderRadius: '12px',
-                      background: currentRating === option.value ? '#E8F5E9' : 'white',
-                      cursor: 'pointer',
-                      minWidth: '70px',
-                      transition: 'all 0.2s',
-                      flex: '1 1 auto'
-                    }}
-                  >
-                    <div style={{ fontSize: '28px', marginBottom: '6px' }}>{option.emoji}</div>
-                    <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>
-                      {option.label}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#666' }}>
-                      {option.temp}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="modal-buttons">
-              <button
-                className="modal-button secondary"
-                onClick={onCancel}
-              >
-                건너뛰기
-              </button>
-              <button
-                className="modal-button primary"
-                onClick={handleNext}
-                disabled={!currentRating}
-                style={{
-                  opacity: currentRating ? 1 : 0.5,
-                  cursor: currentRating ? 'pointer' : 'not-allowed'
-                }}
-              >
-                다음
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const canSubmit = driverRating > 0;
 
   // 택시기사 평가 단계
   return (
     <div className="modal-overlay" style={{ zIndex: 1000 }}>
       <div className="modal" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          택시기사 평가
-          <div style={{ fontSize: '14px', fontWeight: 'normal', color: '#666', marginTop: '4px' }}>
-            {participants.length + 1} / {participants.length + 1}
-          </div>
+          택시기사 매너온도 평가
         </div>
         <div className="modal-content">
+          <div style={{ 
+            background: '#E8F5E9', 
+            border: '2px solid #2E7D32', 
+            borderRadius: '8px', 
+            padding: '12px', 
+            marginBottom: '16px',
+            fontSize: '14px',
+            color: '#2E7D32',
+            textAlign: 'center',
+            fontWeight: 'bold'
+          }}>
+            🌱 쉐어택시를 이용하셨네요! 에코점수가 올라갑니다
+          </div>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <div style={{
               width: '80px',
@@ -2408,7 +2531,7 @@ function RatingScreen({ matchedRide, participants: matchedParticipants, onComple
 }
 
 // 매칭 화면
-function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
+function MatchingScreen({ rideInfo, onCancel, onComplete, onRate, onUpdateUserInfo, userInfo }) {
   const [isMatching, setIsMatching] = useState(!rideInfo.skipMatching); // skipMatching이 true면 바로 완료 화면
   const [matchedRide, setMatchedRide] = useState(null);
   const [showRating, setShowRating] = useState(false);
@@ -2551,6 +2674,22 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
         <span style={{ fontSize: '40px' }}>✅</span>
       </div>
       <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '10px' }}>매칭 완료!</h2>
+      <div style={{
+        background: '#E8F5E9',
+        border: '2px solid #2E7D32',
+        borderRadius: '12px',
+        padding: '12px',
+        marginBottom: '20px',
+        fontSize: '14px',
+        color: '#2E7D32',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        maxWidth: '400px',
+        margin: '0 auto 20px'
+      }}>
+        🌱 쉐어택시를 이용하면 기후위기에서 벗어날 수 있어요!<br />
+        CO₂를 줄이고 지구를 지켜요 🌍
+      </div>
       {displayRide && (
         <>
           <div style={{
@@ -2617,13 +2756,14 @@ function MatchingScreen({ rideInfo, onCancel, onComplete, onRate }) {
       {showRating && matchedRide && (
         <RatingScreen
           matchedRide={matchedRide}
-          participants={matchedRide.matchedParticipants || []}
           onComplete={(ratings) => {
             if (onRate) onRate(ratings);
             setShowRating(false);
             if (onComplete) onComplete();
           }}
           onCancel={() => setShowRating(false)}
+          onUpdateUserInfo={onUpdateUserInfo}
+          userInfo={userInfo}
         />
       )}
     </div>
@@ -2641,7 +2781,7 @@ function App() {
 
   if (!isLoggedIn) {
     if (showSignup) {
-      return <SignupScreen onBack={() => setShowSignup(false)} onSignupComplete={(info) => { setUserInfo({ ...info, mannerTemp: 36.5 }); setIsLoggedIn(true); }} />;
+      return <SignupScreen onBack={() => setShowSignup(false)} onSignupComplete={(info) => { setUserInfo({ ...info, ecoScore: 0 }); setIsLoggedIn(true); }} />;
     }
     return <LoginScreen onLogin={() => setIsLoggedIn(true)} onSignup={() => setShowSignup(true)} />;
   }
@@ -2661,14 +2801,16 @@ function App() {
             onCancel={() => setMatchingInfo(null)}
             onRate={(ratings) => {
               // 평가 결과 저장 (실제로는 서버에 전송)
-              console.log('매너온도 평가:', ratings);
+              console.log('택시기사 매너온도 평가:', ratings);
               setUserRatings(ratings);
-              alert('매너온도 평가가 완료되었습니다!');
+              alert('택시기사 매너온도 평가가 완료되었습니다!');
             }}
             onComplete={() => {
               setMatchingInfo(null);
               setCurrentScreen('home');
             }}
+            onUpdateUserInfo={setUserInfo}
+            userInfo={userInfo}
           />
         </div>
       </div>
@@ -2695,7 +2837,7 @@ function App() {
 
       <div className="content">
         {currentScreen === 'home' && <HomeScreen onNavigate={setCurrentScreen} userInfo={userInfo} />}
-        {currentScreen === 'create' && <CreateRideScreen onBack={() => setCurrentScreen('home')} onStartMatching={(info) => setMatchingInfo(info)} />}
+        {currentScreen === 'create' && <CreateRideScreen onBack={() => setCurrentScreen('home')} onStartMatching={(info) => setMatchingInfo(info)} userInfo={userInfo} onUpdateUserInfo={setUserInfo} />}
         {currentScreen === 'list' && <RideListScreen onStartMatching={(info) => setMatchingInfo(info)} />}
         {currentScreen === 'community' && <CommunityScreen userInfo={userInfo} onUpdateUserInfo={setUserInfo} />}
         {currentScreen === 'profile' && <ProfileScreen userInfo={userInfo} onUpdateUserInfo={setUserInfo} />}
