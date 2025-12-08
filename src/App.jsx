@@ -2775,13 +2775,13 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [showSignup, setShowSignup] = useState(false);
-  const [userInfo, setUserInfo] = useState(null);
+  const [userInfo, setUserInfo] = useState({ ecoScore: 49 });
   const [matchingInfo, setMatchingInfo] = useState(null);
   const [userRatings, setUserRatings] = useState({}); // 사용자의 매너온도 저장
 
   if (!isLoggedIn) {
     if (showSignup) {
-      return <SignupScreen onBack={() => setShowSignup(false)} onSignupComplete={(info) => { setUserInfo({ ...info, ecoScore: 0 }); setIsLoggedIn(true); }} />;
+      return <SignupScreen onBack={() => setShowSignup(false)} onSignupComplete={(info) => { setUserInfo({ ...info, ecoScore: 49 }); setIsLoggedIn(true); }} />;
     }
     return <LoginScreen onLogin={() => setIsLoggedIn(true)} onSignup={() => setShowSignup(true)} />;
   }
