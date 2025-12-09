@@ -118,7 +118,7 @@ const mockCarpoolPosts = [
 ];
 
 // 로그인 화면
-function LoginScreen({ onLogin, onSignup }) {
+function LoginScreen({ onLogin, onSignup, onSkip }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -128,7 +128,24 @@ function LoginScreen({ onLogin, onSignup }) {
   };
 
   return (
-    <div className="login-container">
+    <div className="login-container" style={{ position: 'relative' }}>
+      <button
+        aria-label="skip-login"
+        onClick={onSkip}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          width: '10px',
+          height: '10px',
+          borderRadius: '50%',
+          background: '#2E7D32',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          boxShadow: '0 0 6px rgba(0,0,0,0.25)'
+        }}
+      />
       <div style={{ marginBottom: '20px' }}>
         <img 
           src={logoImage} 
@@ -1201,11 +1218,12 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       id: 1, 
       author: '귀여운 돼지', 
       emoji: '🐷',
-      content: '오늘 택시 쉐어링 너무 좋았어요! 함께 탄 분들이 모두 친절하셨고, 비용도 절약할 수 있어서 만족합니다 😊', 
+      content: '정문→서울역 카풀 같이 탔는데 시간 잘 맞춰서 편하게 갔어요. 너무 감사합니다', 
       time: '2시간 전',
       likes: 5,
       type: 'share',
-      ecoScore: 8
+      ecoScore: 8,
+      comments: []
     },
     { 
       id: 2, 
@@ -1215,7 +1233,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       time: '5시간 전',
       likes: 3,
       type: 'share',
-      ecoScore: 51
+      ecoScore: 51,
+      comments: []
     },
     { 
       id: 3, 
@@ -1225,18 +1244,9 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       time: '1일 전',
       likes: 8,
       type: 'share',
-      ecoScore: 90
+      ecoScore: 90,
+      comments: []
     },
-    { 
-      id: 4, 
-      author: '정문요정', 
-      emoji: '🚗',
-      content: '정문→서울역 카풀 같이 탔는데 시간 잘 맞춰서 편하게 갔어요. 여성만 모집이라 안심됐고, 비용도 아꼈어요!', 
-      time: '30분 전',
-      likes: 4,
-      type: 'share',
-      ecoScore: 49
-    }
   ]);
 
   const [taxiPosts, setTaxiPosts] = useState([
@@ -1248,7 +1258,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       time: '3시간 전',
       likes: 12,
       type: 'taxi',
-      ecoScore: 8
+      ecoScore: 8,
+      comments: []
     },
     { 
       id: 102, 
@@ -1258,12 +1269,14 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       time: '6시간 전',
       likes: 7,
       type: 'taxi',
-      ecoScore: 90
+      ecoScore: 90,
+      comments: []
     }
   ]);
 
   const [newPost, setNewPost] = useState('');
   const [showWriteForm, setShowWriteForm] = useState(false);
+  const [commentInputs, setCommentInputs] = useState({});
 
   const handlePostSubmit = () => {
     if (newPost.trim()) {
@@ -1275,7 +1288,8 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
         time: '방금 전',
         likes: 0,
         type: activeTab,
-        ecoScore: userInfo?.ecoScore || 0
+        ecoScore: userInfo?.ecoScore || 0,
+        comments: []
       };
       
       if (activeTab === 'share') {
@@ -1298,6 +1312,20 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
   };
 
   const currentPosts = activeTab === 'share' ? sharePosts : taxiPosts;
+
+  const handleCommentSubmit = (postId) => {
+    const text = (commentInputs[postId] || '').trim();
+    if (!text) return;
+    const addComment = (posts, setter) => {
+      const updated = posts.map((p) =>
+        p.id === postId ? { ...p, comments: [...(p.comments || []), { id: Date.now(), author: userInfo?.nickname || '익명', text }] } : p
+      );
+      setter(updated);
+    };
+    if (activeTab === 'share') addComment(sharePosts, setSharePosts);
+    else addComment(taxiPosts, setTaxiPosts);
+    setCommentInputs({ ...commentInputs, [postId]: '' });
+  };
 
   return (
     <>
@@ -1522,20 +1550,46 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
                   <span>👍</span>
                   <span>{post.likes}</span>
                 </button>
-                <button
+              </div>
+              {post.comments && post.comments.length > 0 && (
+                <div style={{ marginTop: '10px', borderTop: '1px dashed #e0e0e0', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {post.comments.map((c) => (
+                    <div key={c.id} style={{ display: 'flex', gap: '8px', fontSize: '13px', color: '#444', background: '#f7f7f7', padding: '8px', borderRadius: '8px' }}>
+                      <span style={{ fontWeight: 'bold', color: '#2E7D32' }}>{c.author}</span>
+                      <span style={{ color: '#777' }}>|</span>
+                      <span>{c.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={commentInputs[post.id] || ''}
+                  onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}
+                  placeholder="댓글을 입력하세요"
                   style={{
-                    background: 'none',
+                    flex: 1,
+                    padding: '8px 10px',
+                  border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '13px'
+                  }}
+                />
+                <button
+                  onClick={() => handleCommentSubmit(post.id)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#2E7D32',
+                    color: 'white',
                     border: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer',
-                    color: '#666',
-                    fontSize: '14px'
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
                   }}
                 >
-                  <MessageSquare size={16} />
-                  <span>댓글</span>
+                  등록
                 </button>
               </div>
             </div>
@@ -3021,6 +3075,43 @@ function App() {
   const [userInfo, setUserInfo] = useState({ ecoScore: 49 });
   const [matchingInfo, setMatchingInfo] = useState(null);
   const [userRatings, setUserRatings] = useState({}); // 사용자의 매너온도 저장
+  const audioCtxRef = useRef(null);
+
+  // 첫 페이지 진입 시 짧은 경적 사운드 (자동 재생 차단 시 무시)
+  const playHonkSound = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const createBeep = (startTime, freq = 520, duration = 0.18) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      const now = ctx.currentTime;
+      createBeep(now, 520, 0.18);
+      createBeep(now + 0.25, 520, 0.18);
+    } catch (err) {
+      // 자동 재생이 차단되거나 실패해도 무시
+    }
+  }, []);
+
+  useEffect(() => {
+    playHonkSound();
+  }, [playHonkSound]);
 
   // 자동 로그인/유저 정보 로드
   useEffect(() => {
@@ -3069,7 +3160,16 @@ function App() {
     if (showSignup) {
       return <SignupScreen onBack={() => setShowSignup(false)} onSignupComplete={(info) => { setUserInfo({ ...info, ecoScore: 49 }); setIsLoggedIn(true); }} />;
     }
-    return <LoginScreen onLogin={handleLogin} onSignup={() => setShowSignup(true)} />;
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        onSignup={() => setShowSignup(true)}
+        onSkip={() => {
+          setUserInfo((prev) => prev || { ecoScore: 49 });
+          setIsLoggedIn(true);
+        }}
+      />
+    );
   }
 
   if (matchingInfo) {
