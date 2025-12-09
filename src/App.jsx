@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
-import { CheckCircle, Users, DollarSign, Leaf, History, Star, Bell, Shield, Home, List, User, Plus, Search, MapPin, User as UserIcon, MessageSquare, Send, ThumbsUp, ThumbsDown, Gamepad2 } from 'lucide-react';
+import { CheckCircle, Users, DollarSign, Leaf, History, Star, Bell, Shield, Home, List, User, Plus, Search, MapPin, User as UserIcon, MessageSquare, Send, ThumbsUp, ThumbsDown, Gamepad2, Car } from 'lucide-react';
 import logoImage from './assets/logo.png';
 
 // 더미 데이터
@@ -47,6 +47,74 @@ const mockRides = [
       { role: 'student', nickname: '치키차카', emoji: '🐱' }
     ]
   },
+  // 카풀 요청을 팟 목록에 포함
+  {
+    id: 'carpool_1',
+    pickupZone: '정문',
+    destinationZone: '서울역',
+    participants: 1,
+    maxParticipants: 4,
+    estimatedCost: 0, // 비용 표시 대신 정보만 제공
+    departureTime: '2025.12.19(금) 밤 10시',
+    isQuiet: false,
+    femaleOnly: true,
+    isBlindMode: false, // 카풀은 아이디 공개
+    isCarpool: true,
+    title: '2025.12.19(금) 밤 10시 정문 출발예정',
+    note: '여성만, 서울역, 같이 가실 분 구해요!'
+  },
+  {
+    id: 'carpool_2',
+    pickupZone: 'ECC 앞',
+    destinationZone: '홍대입구역',
+    participants: 1,
+    maxParticipants: 3,
+    estimatedCost: 0,
+    departureTime: '오늘 밤 11시 30분',
+    isQuiet: true,
+    femaleOnly: false,
+    isBlindMode: false, // 카풀은 아이디 공개
+    isCarpool: true,
+    title: '오늘 밤 11시30분 ECC 앞 → 홍대입구역',
+    note: '조용히 이동 원해요'
+  }
+];
+
+// 카풀 게시판 더미 데이터
+const mockCarpoolPosts = [
+  {
+    id: 'carpool_1',
+    title: '2025.12.19(금) 밤 10시 정문 출발예정',
+    from: '정문',
+    to: '서울역',
+    time: '밤 10시',
+    date: '2025.12.19(금)',
+    femaleOnly: true,
+    seats: '여성만',
+    note: '같이 가실 분 구해요!'
+  },
+  {
+    id: 'carpool_2',
+    title: '오늘 밤 11시30분 ECC 앞 → 홍대입구역',
+    from: 'ECC 앞',
+    to: '홍대입구역',
+    time: '밤 11시 30분',
+    date: '오늘',
+    femaleOnly: false,
+    seats: '2/3',
+    note: '조용히 이동 원해요'
+  },
+  {
+    id: 'carpool_3',
+    title: '내일 새벽 1시 후문 → 김포공항',
+    from: '후문',
+    to: '김포공항',
+    time: '새벽 1시',
+    date: '내일',
+    femaleOnly: true,
+    seats: '여성만',
+    note: '큰 캐리어 1개 가능'
+  }
 ];
 
 // 로그인 화면
@@ -433,26 +501,37 @@ function HomeScreen({ onNavigate, userInfo }) {
         </div>
         <div className="card-subtitle">지금 1개 팟 대기중</div>
       </div>
-      <div className="card" onClick={() => onNavigate('list')}>
-        <div className="card-header">
-          <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MapPin size={20} color="#2E7D32" />
-            당산역
+      <div className="section-title" style={{ marginTop: '24px' }}>카풀 게시판</div>
+      {mockCarpoolPosts.filter(post => post.date === '오늘').map((post) => (
+        <div key={post.id} className="ride-card" style={{ cursor: 'default' }}>
+          <div className="ride-route">
+            <div className="ride-location">📍 {post.from}</div>
+            <span className="ride-arrow">→</span>
+            <div className="ride-location">🚩 {post.to}</div>
           </div>
-        </div>
-        <div className="card-subtitle">지금 1개 팟 대기중</div>
-      </div>
-      <div className="card" onClick={() => onNavigate('list')}>
-        <div className="card-header">
-          <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MapPin size={20} color="#2E7D32" />
-            을지로입구역
+          <div className="ride-info" style={{ color: '#2E7D32', fontWeight: 'bold' }}>
+            🗓 {post.date} · ⏰ {post.time}
           </div>
+          <div className="ride-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ color: '#555', fontWeight: 'bold' }}>{post.title}</div>
+            <div className="tag female" style={{ background: post.femaleOnly ? '#FFB6C1' : '#e0e0e0', color: post.femaleOnly ? '#c2185b' : '#555' }}>
+              {post.femaleOnly ? '여성만' : post.seats || '모집중'}
+            </div>
+          </div>
+          {post.note && (
+            <div style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>
+              {post.note}
+            </div>
+          )}
         </div>
-        <div className="card-subtitle">지금 1개 팟 대기중</div>
-      </div>
+      ))}
+      {mockCarpoolPosts.filter(post => post.date === '오늘').length === 0 && (
+        <div className="card" style={{ textAlign: 'center', color: '#666' }}>
+          오늘 출발 카풀이 없습니다.
+        </div>
+      )}
 
-      <div className="section-title">최근 이용 내역</div>
+      <div className="section-title" style={{ marginTop: '24px' }}>최근 이용 내역</div>
       <div className="card" style={{ background: '#F5F5F5' }}>
         <div className="card-header">
           <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -463,6 +542,7 @@ function HomeScreen({ onNavigate, userInfo }) {
         </div>
         <div className="card-subtitle">2024.03.15 14:30</div>
       </div>
+
     </>
   );
 }
@@ -858,6 +938,11 @@ function RideListScreen({ onStartMatching }) {
   const [selectedRide, setSelectedRide] = useState(null);
 
   const handleApprove = (ride) => {
+    // 카풀은 매칭/매너온도 흐름 없이 정보만 표시
+    if (ride.isCarpool) {
+      setSelectedRide(null);
+      return;
+    }
     // 승인 버튼 클릭 시 바로 매칭 완료 상태로 전달
     onStartMatching({
       pickupZone: ride.pickupZone,
@@ -871,15 +956,64 @@ function RideListScreen({ onStartMatching }) {
     setSelectedRide(null);
   };
 
+  // 출발 시간 파싱 (간단한 우선순위: now < 오늘 밤/시간 < 시:분 < 기타)
+  const parseDepartureMinutes = (ride) => {
+    const t = (ride.departureTime || '').trim();
+    if (t.toLowerCase() === 'now') return 0;
+    if (/^202\d\./.test(t)) return 400000; // 날짜 지정된 건 가장 뒤
+
+    // "오늘 밤 11시 30분" 형태
+    if (t.includes('오늘')) {
+      let hour = 0;
+      let minute = 0;
+      const m = t.match(/(\d{1,2})시(?:\s*(\d{1,2})분)?/);
+      if (m) {
+        hour = parseInt(m[1], 10);
+        minute = m[2] ? parseInt(m[2], 10) : 0;
+      }
+      if (/밤|오후|저녁/.test(t) && hour < 12) hour += 12;
+      return hour * 60 + minute;
+    }
+
+    // "밤 10시" 형태
+    const night = t.match(/밤\s*(\d{1,2})(?:시)?(?:\s*(\d{1,2})분)?/);
+    if (night) {
+      const h = Math.min(23, parseInt(night[1], 10) + (parseInt(night[1], 10) < 12 ? 12 : 0));
+      const m = night[2] ? parseInt(night[2], 10) : 0;
+      return h * 60 + m;
+    }
+
+    // "22:00" 형태
+    const hm = t.match(/(\d{1,2}):(\d{2})/);
+    if (hm) {
+      return parseInt(hm[1], 10) * 60 + parseInt(hm[2], 10);
+    }
+
+    return 300000; // 알 수 없는 형식은 뒤로
+  };
+
+  // 카풀 우선 + 시간순 정렬
+  const ridesForList = [...mockRides].sort((a, b) => {
+    const carpoolDiff = (b.isCarpool ? 1 : 0) - (a.isCarpool ? 1 : 0);
+    if (carpoolDiff !== 0) return carpoolDiff;
+    return parseDepartureMinutes(a) - parseDepartureMinutes(b);
+  });
+
   return (
     <>
-      <div className="section-title">모집 중인 팟 ({mockRides.length})</div>
+      <div className="section-title">모집 중인 팟 ({ridesForList.length})</div>
       
-      {mockRides.map((ride) => (
+      {ridesForList.map((ride) => (
         <div
           key={ride.id}
           className="ride-card"
+          style={ride.isCarpool ? { background: '#F1F8E9' } : undefined}
           onClick={() => {
+            // 카풀은 상세만 보여주고 매칭/평가로 이동하지 않음
+            if (ride.isCarpool) {
+              setSelectedRide(ride);
+              return;
+            }
             // 정문-서울역 팟은 바로 매칭 완료로 이동
             if (ride.pickupZone === '정문' && ride.destinationZone === '서울역') {
               onStartMatching({
@@ -906,17 +1040,34 @@ function RideListScreen({ onStartMatching }) {
               🚩 {ride.destinationZone}
             </div>
           </div>
-          <div className="ride-info">
+          <div className="ride-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ color: '#2E7D32', fontWeight: 'bold' }}>
-              {ride.departureTime === 'now' ? '🚀 지금 출발' : `⏰ ${ride.departureTime} 출발 예약`}
+              {ride.departureTime === 'now' ? '🚀 지금 출발' : `⏰ ${ride.departureTime}${ride.isCarpool ? '' : ' 출발 예약'}`}
             </div>
+            {ride.isCarpool && (
+              <span className="tag" style={{ background: '#E8F5E9', color: '#2E7D32', fontWeight: 'bold' }}>
+                카풀
+              </span>
+            )}
           </div>
           <div className="ride-info">
             <div className="ride-participants">
               👥 {ride.participants}/{ride.maxParticipants}명
             </div>
-            <div className="ride-cost">₩{ride.estimatedCost}</div>
+            <div className="ride-cost">
+              {ride.isCarpool ? '카풀 모집' : `₩${ride.estimatedCost}`}
+            </div>
           </div>
+          {ride.title && (
+            <div style={{ marginTop: '8px', fontWeight: 'bold', color: '#333' }}>
+              {ride.title}
+            </div>
+          )}
+          {ride.note && (
+            <div style={{ marginTop: '6px', color: '#666', fontSize: '14px' }}>
+              {ride.note}
+            </div>
+          )}
           {/* 참여자 정보 표시 */}
           {!ride.isBlindMode && ride.participantInfo && ride.participantInfo.length > 0 && (
             <div style={{ 
@@ -968,7 +1119,8 @@ function RideListScreen({ onStartMatching }) {
           {(ride.isQuiet || ride.femaleOnly || ride.isHonorTaxi) && (
             <div className="ride-tags">
               {ride.isQuiet && <span className="tag quiet">조용히 가기</span>}
-              {ride.femaleOnly && <span className="tag female">여학생만</span>}
+          {ride.femaleOnly && <span className="tag female">여학생만</span>}
+          {ride.isCarpool && <span className="tag" style={{ background: '#BBDEFB', color: '#0D47A1' }}>카풀</span>}
               {ride.isHonorTaxi && <span className="tag" style={{ background: '#FFD700', color: '#000' }}>⭐ 명예의 택시</span>}
             </div>
           )}
@@ -982,9 +1134,12 @@ function RideListScreen({ onStartMatching }) {
             <div className="modal-content">
               <p><strong>출발:</strong> {selectedRide.pickupZone}</p>
               <p><strong>도착:</strong> {selectedRide.destinationZone}</p>
-              <p><strong>출발 시간:</strong> {selectedRide.departureTime === 'now' ? '지금 출발' : `${selectedRide.departureTime} 출발 예약`}</p>
+              <p><strong>출발 시간:</strong> {selectedRide.departureTime === 'now' ? '지금 출발' : selectedRide.departureTime}</p>
               <p><strong>현재 인원:</strong> {selectedRide.participants}/{selectedRide.maxParticipants}명</p>
-              <p><strong>예상 비용:</strong> ₩{selectedRide.estimatedCost}</p>
+              {!selectedRide.isCarpool && <p><strong>예상 비용:</strong> ₩{selectedRide.estimatedCost}</p>}
+              {selectedRide.isCarpool && <p><strong>모집 유형:</strong> 카풀</p>}
+              {selectedRide.title && <p><strong>제목:</strong> {selectedRide.title}</p>}
+              {selectedRide.note && <p><strong>메모:</strong> {selectedRide.note}</p>}
               {selectedRide.isBlindMode ? (
                 <p style={{ color: '#856404', background: '#fff3cd', padding: '8px', borderRadius: '8px', marginTop: '12px' }}>
                   🔒 아이디 비공개
@@ -1010,12 +1165,25 @@ function RideListScreen({ onStartMatching }) {
               >
                 취소
               </button>
-              <button
-                className="modal-button primary"
-                onClick={() => handleApprove(selectedRide)}
-              >
-                승인
-              </button>
+              {!selectedRide.isCarpool && (
+                <button
+                  className="modal-button primary"
+                  onClick={() => handleApprove(selectedRide)}
+                >
+                  승인
+                </button>
+              )}
+              {selectedRide.isCarpool && (
+                <button
+                  className="modal-button primary"
+                  onClick={() => {
+                    alert('카풀 매칭 완료! 😊');
+                    setSelectedRide(null);
+                  }}
+                >
+                  확인
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1058,6 +1226,16 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
       likes: 8,
       type: 'share',
       ecoScore: 90
+    },
+    { 
+      id: 4, 
+      author: '정문요정', 
+      emoji: '🚗',
+      content: '정문→서울역 카풀 같이 탔는데 시간 잘 맞춰서 편하게 갔어요. 여성만 모집이라 안심됐고, 비용도 아꼈어요!', 
+      time: '30분 전',
+      likes: 4,
+      type: 'share',
+      ecoScore: 49
     }
   ]);
 
@@ -1368,6 +1546,16 @@ function CommunityScreen({ userInfo, onUpdateUserInfo }) {
   );
 }
 
+// 카풀 화면
+function CarpoolScreen() {
+  return (
+    <div className="card" style={{ padding: '16px', textAlign: 'center', color: '#2E7D32' }}>
+      <h2 style={{ marginBottom: '8px' }}>카풀</h2>
+      <p style={{ color: '#555' }}>곧 제공될 예정입니다. 🚗</p>
+    </div>
+  );
+}
+
 // 게임 화면 - Stop The Light
 function GameScreen({ onBack }) {
   const [light, setLight] = useState("red"); // red → yellow → green
@@ -1379,9 +1567,13 @@ function GameScreen({ onBack }) {
   const [lightPositions, setLightPositions] = useState({ red: 0, yellow: 1, green: 2 }); // 각 색상의 위치 (0: 위, 1: 중간, 2: 아래)
   const [hitFeedback, setHitFeedback] = useState(null); // 'success' or 'fail'
   const [hitAnimation, setHitAnimation] = useState(false); // 애니메이션 트리거
+  const [showAd, setShowAd] = useState(false); // 광고 모달 노출 여부
+  const [adCountdown, setAdCountdown] = useState(3); // 광고 잔여초
   const gameStartTime = useRef(null);
   const gameIntervalRef = useRef(null);
   const colorChangeTimeoutRef = useRef(null);
+  const adTimeoutRef = useRef(null);
+  const adIntervalRef = useRef(null);
   const nextColorChangeTime = useRef(0);
   const audioContextRef = useRef(null);
   const backgroundOscillatorsRef = useRef([]); // 배경음악용 오실레이터들
@@ -1715,7 +1907,7 @@ function GameScreen({ onBack }) {
   };
 
   // 게임 시작 로직
-  const startGame = async () => {
+  const startGameCore = async () => {
     // iOS 호환: 사용자 상호작용 이벤트 핸들러 내에서 AudioContext 생성 및 활성화
     try {
       // AudioContext 초기화 (사용자 상호작용 이벤트 핸들러 내에서)
@@ -1776,6 +1968,37 @@ function GameScreen({ onBack }) {
       setLight("yellow");
       scheduleNextColorChange(); // 다음 색상 변경 예약
     }, firstInterval);
+  };
+
+  const clearAdTimers = () => {
+    if (adTimeoutRef.current) {
+      clearTimeout(adTimeoutRef.current);
+      adTimeoutRef.current = null;
+    }
+    if (adIntervalRef.current) {
+      clearInterval(adIntervalRef.current);
+      adIntervalRef.current = null;
+    }
+  };
+
+  const startGameWithAd = () => {
+    if (gameState === "playing") return;
+    clearAdTimers();
+    setAdCountdown(3);
+    setShowAd(true);
+    adIntervalRef.current = setInterval(() => {
+      setAdCountdown((prev) => {
+        if (prev <= 1) {
+          return 1;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    adTimeoutRef.current = setTimeout(() => {
+      clearAdTimers();
+      setShowAd(false);
+      startGameCore(); // 광고 종료 후 자동으로 게임 시작
+    }, 3000);
   };
 
   // 유저가 탭했을 때
@@ -1843,6 +2066,7 @@ function GameScreen({ onBack }) {
         clearTimeout(colorChangeTimeoutRef.current);
       }
       stopBackgroundMusic();
+      clearAdTimers();
     };
   }, []);
 
@@ -2012,7 +2236,7 @@ function GameScreen({ onBack }) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              startGame();
+              startGameWithAd();
             }}
             style={{
               padding: '12px 24px',
@@ -2079,6 +2303,25 @@ function GameScreen({ onBack }) {
         </div>
       )}
 
+      {/* 이화김밥 3초 광고 모달 */}
+      {showAd && (
+        <div className="modal-overlay" style={{ zIndex: 3000 }}>
+          <div className="modal" style={{ maxWidth: '360px', textAlign: 'center', padding: '24px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🍙</div>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#2E7D32' }}>
+              이화김밥
+            </div>
+            <div style={{ color: '#555', marginBottom: '16px' }}>
+              신선한 재료로 정문 앞에서 바로 만드는 이화김밥! <br />
+              3초 뒤 광고가 끝나면 게임이 자동으로 시작됩니다.
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1976D2' }}>
+              {adCountdown}초 남음
+            </div>
+          </div>
+        </div>
+      )}
+
       {gameState === "finished" && (
         <div style={{ textAlign: 'center' }}>
           <div style={{
@@ -2117,7 +2360,7 @@ function GameScreen({ onBack }) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                startGame();
+                startGameWithAd();
               }}
               style={{
                 padding: '12px 24px',
@@ -2779,11 +3022,54 @@ function App() {
   const [matchingInfo, setMatchingInfo] = useState(null);
   const [userRatings, setUserRatings] = useState({}); // 사용자의 매너온도 저장
 
+  // 자동 로그인/유저 정보 로드
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('eway_user');
+      const storedLogin = localStorage.getItem('eway_logged_in');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed) setUserInfo(parsed);
+      }
+      if (storedLogin === 'true') {
+        setIsLoggedIn(true);
+      }
+    } catch (err) {
+      console.error('Failed to load saved session', err);
+    }
+  }, []);
+
+  // 유저 정보 저장
+  useEffect(() => {
+    try {
+      if (userInfo) {
+        localStorage.setItem('eway_user', JSON.stringify(userInfo));
+      }
+    } catch (err) {
+      console.error('Failed to persist user info', err);
+    }
+  }, [userInfo]);
+
+  // 로그인 상태 저장
+  useEffect(() => {
+    try {
+      localStorage.setItem('eway_logged_in', isLoggedIn ? 'true' : 'false');
+    } catch (err) {
+      console.error('Failed to persist login state', err);
+    }
+  }, [isLoggedIn]);
+
+  const handleLogin = () => {
+    // 기본 유저 정보가 없으면 초기값을 세팅
+    setUserInfo((prev) => prev || { ecoScore: 49 });
+    setIsLoggedIn(true);
+  };
+
   if (!isLoggedIn) {
     if (showSignup) {
       return <SignupScreen onBack={() => setShowSignup(false)} onSignupComplete={(info) => { setUserInfo({ ...info, ecoScore: 49 }); setIsLoggedIn(true); }} />;
     }
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} onSignup={() => setShowSignup(true)} />;
+    return <LoginScreen onLogin={handleLogin} onSignup={() => setShowSignup(true)} />;
   }
 
   if (matchingInfo) {
