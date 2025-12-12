@@ -1,0 +1,26 @@
+{
+  "name": "EWAY SHARE - 이화인을 위한 안심 택시 쉐어링",
+  "short_name": "EWAY SHARE",
+  "description": "이화인을 위한 안심 택시 쉐어링 앱",
+  "start_url": "/eway-share/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2E7D32",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/eway-share/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/eway-share/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "lifestyle"],
+  "lang": "ko"
+}
